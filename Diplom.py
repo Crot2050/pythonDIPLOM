@@ -6,6 +6,25 @@ VK_USER_ID = input('Введите id пользователя vk: ')
 VK_TOKEN = ''
 YA_TOKEN = ''
 
+
+def time_convert(time_unix: int):
+    time_utc = time.gmtime(time_unix)
+    str_date = time.strftime("%m/%d/%Y", time_utc)
+    str_time = time.strftime("%H:%M:%S", time_utc)
+    return str_date, str_time
+
+
+def find_max_size_photos(get_photo_data):
+    max_size = 0
+    desired_object = 0
+    for index in range(len(get_photo_data)):
+        area_photos = get_photo_data[index].get('height') * get_photo_data[index].get('width')
+        if area_photos > max_size:
+            max_size = area_photos
+            desired_object = index
+    return get_photo_data[desired_object].get('url'), get_photo_data[desired_object].get('type')
+
+
 class VkLoading:
 
     def __init__(self, vk_token):
@@ -23,7 +42,7 @@ class VkLoading:
             'photo_sizes': 0,
             'v': '5.131'
         })
-        get_photos = requests.get(method_photos_get, params=params)
+        get_photos = requests.get(vk_url, params=params)
         if get_photos.status_code == 200:
             info_json = get_photos.json()
             return info_json.get('response')
@@ -53,11 +72,17 @@ class VkLoading:
         return json_file
 
 
- class YaDisk:
-    def __init__(self):
-        self.token = YA_TOKEN
-        self.headers = {'Authorization': self.token}
+class YaDisk:
 
+    def __init__(self, token, folder_path, count=5):  # Метод передаваемых переменных
+        self.token = YA_TOKEN
+        self.url = "https://cloud-api.yandex.net/v1/disk/resources"
+        self.count = count
+        self.folder_path = folder_path
+        self.headers = {
+            "Authorization": f"OAuth {self.token}",
+            "Content-Type": "application/json"
+        }
 #Создаем папку
     def create_folder(self):
         params = {
@@ -84,14 +109,14 @@ class VkLoading:
             }
             upload_photo = requests.post(url_upload, headers=self.headers, params=params)
             if upload_photo.status_code != 202:
-                self.delete_folder()
-                sys.exit(f"Ошибка ответа, код: {upload_photo.status_code}
+                sys.exit(f"Ошибка ответа, код: {upload_photo.status_code}")
         return "Все файлы успешно загружены"
+
 
 if __name__ == '__main__':
     json_name = input('Введите название папки:')
-    VKreq = VKRequest(VK_TOKEN)
+    VKreq = VkLoading(VK_TOKEN)
     with open(json_name + ".json", "w") as file:
-        json.dump(VKreq.json_info_photos(), file, indent=4)
-    yandex = YAuploader(yatoken, json_name)
-    print(yandex.upload_files(VKreq.json_info_photos()))
+        json.dump(VKreq.selection_photos(), file, indent=4)
+    yandex = YaDisk(YA_TOKEN, json_name)
+    print(yandex.upload_files(VKreq.selection_photos()))
